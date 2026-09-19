@@ -20,14 +20,24 @@ DETAILS_HEIGHT = 18
 LINE_SPACING = 2
 DETAILS_TEXT_SIZE = 2
 
-BADGE_PATH = "/badges/badge.txt"
+BADGE_DIR = "/badges"
+DEFAULT_CARD = "badge"
+
+# A "card" is one badge: a /badges/<name>.txt holding the text, plus any
+# /badges/<name>-*.png or /badges/<name>_*.jpg images that belong with it.
+# UP/DOWN walks every (card, image) pair, so one scroll moves through your
+# images *and* your different badges. Add a badge by dropping in a new .txt
+# and naming its images to match; no code change needed.
+#
+# The pixel width in an image filename ("gcloud-logo_100.png") is what reserves
+# space for the text. An image with no _<width> is drawn full screen instead.
 
 FONTS = ["bitmap8", "serif", "sans", "gothic"]
 THICKNESSES = [1, 4, 4, 2]
 SIZE_ADJ = [1, 0.3, 0.3, 0.3]
 
-# Will be replaced with badge.txt
-# "Universe 2024", first_name, lastname_name, company, title, pronouns to the file on separate lines.
+# Written to <DEFAULT_CARD>.txt if /badges holds no .txt at all.
+# Event, first name, last name, company, title, pronouns, handle - one per line.
 DEFAULT_TEXT = """Universe 2024
 Mona Lisa
 Octocat
@@ -62,41 +72,120 @@ def extract_image_width_from_filename(filename):
     return 0
 
 
+def is_image(name):
+    if name.endswith(".jpg"):
+        return True
+    return name.endswith(".png") and not BACK_COMPAT_MODE
+
+
+def discover_slides():
+    """Every (card, image) pair in /badges, in display order.
+
+    A card with no images still gets one text-only slide, so a badge always
+    renders even before you have artwork for it.
+    """
+    try:
+        entries = sorted(os.listdir(BADGE_DIR))
+    except OSError:
+        entries = []
+
+    cards = [e[:-4] for e in entries if e.endswith(".txt")]
+    if not cards:
+        with open(f"{BADGE_DIR}/{DEFAULT_CARD}.txt", "w") as f:
+            f.write(DEFAULT_TEXT)
+            f.flush()
+        cards = [DEFAULT_CARD]
+        entries = sorted(os.listdir(BADGE_DIR))
+
+    slides = []
+    for card in cards:
+        # Require a separator so a card named "badge" cannot swallow the
+        # images belonging to a card named "badgeX".
+        images = [e for e in entries
+                  if (e.startswith(card + "-") or e.startswith(card + "_"))
+                  and is_image(e)]
+        if images:
+            for image in images:
+                slides.append((card, image))
+        else:
+            slides.append((card, None))
+    return slides
+
+
+def read_card(card):
+    """Parse /badges/<card>.txt into the fields the badge draws."""
+    try:
+        with open(f"{BADGE_DIR}/{card}.txt", "r") as f:
+            lines = f.read().split("\n")
+    except OSError:
+        lines = DEFAULT_TEXT.split("\n")
+    while len(lines) < 7:
+        lines.append("")
+
+    first_name, last_name = lines[1], lines[2]
+    title, pronouns, handle = lines[4], lines[5], lines[6]
+
+    # If the first name is empty, use the last name as the first name
+    if first_name.strip() == "":
+        first_name = last_name
+        last_name = ""
+
+    # Truncate Title and pronouns to fit
+    return (first_name, last_name,
+            truncate_string(title, DETAILS_TEXT_SIZE, 310),
+            truncate_string(pronouns, DETAILS_TEXT_SIZE, 110),
+            truncate_string(handle, DETAILS_TEXT_SIZE, 220))
+
+
+_card_cache = {}
+
+
+def card_text(card):
+    if card not in _card_cache:
+        _card_cache[card] = read_card(card)
+    return _card_cache[card]
+
+
 # ------------------------------
 #      Drawing functions
 # ------------------------------
 
 # Draw the badge, including user text
 def draw_badge():
+    card, target_image = SLIDES[state["slide_idx"]]
+    first_name, last_name, title, pronouns, handle = card_text(card)
+
     display.set_pen(15)
     display.clear()
-    
-    # Draw the background
-    try:
-        target_image = BADGE_IMAGES[state["picture_idx"]]
-        image_size = extract_image_width_from_filename(target_image)
-        TEXT_WIDTH = WIDTH - LEFT_PADDING - image_size
 
-        # If no image was pulled from the name, it must be the background.
-        if(image_size == 0):
-            image_size = WIDTH
-        
-        image_path = f"/badges/{target_image}"
-        print(image_path)
-        if image_path.endswith(".png"):
-            png.open_file(image_path)
-            png.decode(WIDTH - image_size, 0)
-        else:
-            jpeg.open_file(image_path)
-            jpeg.decode(WIDTH - image_size, 0)
-    except OSError:
-        print("Badge background error")
+    # Draw the background. A text-only card still needs a usable TEXT_WIDTH,
+    # so set it before anything that can fail.
+    TEXT_WIDTH = WIDTH - LEFT_PADDING
+    if target_image is not None:
+        try:
+            image_size = extract_image_width_from_filename(target_image)
+            TEXT_WIDTH = WIDTH - LEFT_PADDING - image_size
+
+            # If no image was pulled from the name, it must be the background.
+            if(image_size == 0):
+                image_size = WIDTH
+
+            image_path = f"{BADGE_DIR}/{target_image}"
+            print(image_path)
+            if image_path.endswith(".png"):
+                png.open_file(image_path)
+                png.decode(WIDTH - image_size, 0)
+            else:
+                jpeg.open_file(image_path)
+                jpeg.decode(WIDTH - image_size, 0)
+        except OSError:
+            print("Badge background error")
 
     # Draw the firstname.
     display.set_pen(0)
     display.set_font(FONTS[state["font_idx"]])
     display.set_thickness(THICKNESSES[state["font_idx"]])
-    
+
     size_adjustment = SIZE_ADJ[state["font_idx"]]
     vertical_adjustment = (int(1 / size_adjustment) - 1) * 5
 
@@ -125,7 +214,7 @@ def draw_badge():
     # Draw the title and pronouns, aligned to the bottom & truncated to fit on one line
     display.set_pen(0)
     display.set_thickness(int(THICKNESSES[state["font_idx"]] / 2))
-    
+
     # Title
     display.text(title, LEFT_PADDING, HEIGHT - (DETAILS_HEIGHT * 2) - LINE_SPACING - 2, TEXT_WIDTH, DETAILS_TEXT_SIZE * size_adjustment)
 
@@ -135,7 +224,7 @@ def draw_badge():
         display.text(pronouns, LEFT_PADDING, HEIGHT - DETAILS_HEIGHT, TEXT_WIDTH, DETAILS_TEXT_SIZE * size_adjustment)
     else:
         display.text(handle, LEFT_PADDING, HEIGHT - DETAILS_HEIGHT, TEXT_WIDTH, DETAILS_TEXT_SIZE * size_adjustment)
-    
+
     display.update()
 
 
@@ -146,7 +235,7 @@ def draw_badge():
 # Global variables
 state = {
     "font_idx": 0,
-    "picture_idx": 0
+    "slide_idx": 0
 }
 badger_os.state_load("badge++", state)
 
@@ -164,50 +253,12 @@ if(not(BACK_COMPAT_MODE)):
 else:
     print("PNG library is not available on the Universe 2023 badge.")
 
-# Open the badge file
-try:
-    badge = open(BADGE_PATH, "r")
-except OSError:
-    with open(BADGE_PATH, "w") as f:
-        f.write(DEFAULT_TEXT)
-        f.flush()
-    badge = open(BADGE_PATH, "r")
+SLIDES = discover_slides()
+TOTAL_SLIDES = len(SLIDES)
 
-# Read in the next 6 lines           # Default values
-try:
-    event = badge.readline()         # "Universe 2024"
-    first_name = badge.readline()    # "Mona Lisa"
-    last_name = badge.readline()     # "Octocat"
-    company = badge.readline()       # "GitHub"
-    title = badge.readline()         # "Company Mascot"
-    pronouns = badge.readline()      # "she/her"
-    handle = badge.readline()        # "@mona"
-    
-    # If the first name is empty, use the last name as the first name
-    if first_name.strip() == "":
-        first_name = last_name
-        last_name = ""
-    
-    # Truncate Title and pronouns to fit
-    title = truncate_string(title, DETAILS_TEXT_SIZE, 310)
-    pronouns = truncate_string(pronouns, DETAILS_TEXT_SIZE, 110)
-    handle = truncate_string(handle, DETAILS_TEXT_SIZE, 220)
-    
-finally:
-    badge.close()
-    
-# Inventory profile images. Ignore PNGs if compatibility mode is enabled.
-try:
-    BADGE_IMAGES = [
-        f for f in os.listdir("/badges")
-        if f.endswith(".jpg") or (not(BACK_COMPAT_MODE) and f.endswith(".png"))
-    ]
-    TOTAL_IMAGES = len(BADGE_IMAGES)
-except OSError:
-    pass
-
-# Avoid trying to be an invalid state if images are removed.
-state["picture_idx"] = max(state["picture_idx"], TOTAL_IMAGES - 1)
+# Avoid being in an invalid state if badges or images were removed.
+if state["slide_idx"] >= TOTAL_SLIDES:
+    state["slide_idx"] = 0
 
 # ------------------------------
 #       Main program loop
@@ -221,20 +272,14 @@ while True:
     # powered *through* HALT, so latch the power back on.
     display.keepalive()
 
-    # Was the image requested to be changed?
+    # Step back through the badges and their images.
     if display.pressed(badger2040.BUTTON_DOWN):
-        state["picture_idx"] -= 1
-        if (state["picture_idx"] < 0):
-            state["picture_idx"] = TOTAL_IMAGES - 1
-    
+        state["slide_idx"] = (state["slide_idx"] - 1) % TOTAL_SLIDES
         changed = True
 
-    # Was the image requested to be changed?
+    # Step forward through the badges and their images.
     if display.pressed(badger2040.BUTTON_UP):
-        state["picture_idx"] += 1
-        if (state["picture_idx"] >= TOTAL_IMAGES):
-            state["picture_idx"] = 0
-    
+        state["slide_idx"] = (state["slide_idx"] + 1) % TOTAL_SLIDES
         changed = True
 
     # Was the font requested to be changed?
@@ -242,13 +287,13 @@ while True:
         state["font_idx"] += 1
         if (state["font_idx"] >= len(FONTS)):
             state["font_idx"] = 0
-            
+
         changed = True
 
     # Was the font requested to be changed?
     if display.pressed(badger2040.BUTTON_B):
         state["font_idx"] -= 1
-        if (state["font_idx"] <= 0):
+        if (state["font_idx"] < 0):
             state["font_idx"] = len(FONTS) - 1
 
         changed = True

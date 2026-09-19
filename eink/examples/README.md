@@ -14,9 +14,44 @@ Installation instructions:
 
 How to customize your badge:
 - A/B: Cycle back and forth through the font options.
-- UP/DOWN: Cycle back and forth through the images in the `/badges/` directory.
+- UP/DOWN: Cycle back and forth through every badge and image in the `/badges/` directory.
 
 Find the combination that looks best to you!
+
+### Holding more than one badge
+
+Badge++ can hold several completely different badges -- a personal one, a work one -- and UP/DOWN scrolls through all of them without leaving the app.
+
+A *card* is one badge: a `/badges/<name>.txt` holding the text, plus any `/badges/<name>-*` or `/badges/<name>_*` images that belong with it. Badge++ walks every (card, image) pair in order, so scrolling moves through your images *and* your different badges. A card with no images still renders as a text-only badge.
+
+```
+/badges
+  badge.txt                   <- your default badge
+  badge-1-headshot_100.png       both images belong to badge.txt
+  badge-2-avatar_100.png
+  work.txt                    <- a second badge, different title
+  work-logo_100.png
+```
+
+That gives four slides: headshot, avatar, then the work badge with its logo. To add another badge, drop in a new `.txt` and name its images to match -- no code change. Cards are ordered by filename, as are the images within a card, so a numeric prefix pins the order.
+
+The pixel width in an image filename (`badge-2-avatar_100.png`) is what reserves space for your text -- a file with no `_<width>` suffix is drawn full screen as a background instead.
+
+To generate correctly sized and dithered images, use [`tools/badge_image.py`](../tools/badge_image.py):
+
+```bash
+# your GitHub avatar
+python3 tools/badge_image.py --user <handle> --width 100 --format png
+
+# a photo, cropped tighter on the face
+python3 tools/badge_image.py --input headshot.jpg --width 100 --format png \
+    --zoom 1.3 --centering 0.5,0.35
+
+# compare contrast settings before committing to one
+python3 tools/badge_image.py --input headshot.jpg --width 100 --variants
+```
+
+Use `--format png` on a Universe 2024 badge: PNG is lossless, so the image can be dithered to 1-bit up front. On a 2023 badge use `--format jpg`, which ships a grayscale JPEG and lets the badge dither it -- pre-dithering then JPEG-compressing destroys the pattern.
 
 _Note:_ To run this app on the Universe 2023 badge, the `BACK_COMPAT_MODE` constant must be set to `True`. Any PNG images in the `/badges/` directory will be ignored.
 
