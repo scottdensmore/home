@@ -63,6 +63,15 @@ def truncate_string(text, text_size, width):
             return text
 
 
+# Shrink text until it fits the column, the way the name lines do, and only
+# chop it as a last resort. Chopping first loses whole words off a job title
+# that would have fitted a size down.
+def fit_text(text, size, width, floor=0.4, step=0.05):
+    while size > floor and display.measure_text(text, size) > width:
+        size -= step
+    return truncate_string(text, size, width), size
+
+
 # Extract the width of the image based on the file name.
 # It should be just before the extenstion and follow after an underscore.
 def extract_image_width_from_filename(filename):
@@ -130,11 +139,9 @@ def read_card(card):
         first_name = last_name
         last_name = ""
 
-    # Truncate Title and pronouns to fit
-    return (first_name, last_name,
-            truncate_string(title, DETAILS_TEXT_SIZE, 310),
-            truncate_string(pronouns, DETAILS_TEXT_SIZE, 110),
-            truncate_string(handle, DETAILS_TEXT_SIZE, 220))
+    # Deliberately not truncated here: how much fits depends on the font and on
+    # the image width, and both change as you cycle. draw_badge() does it.
+    return first_name, last_name, title, pronouns, handle
 
 
 _card_cache = {}
@@ -215,15 +222,21 @@ def draw_badge():
     display.set_pen(0)
     display.set_thickness(int(THICKNESSES[state["font_idx"]] / 2))
 
+    # Fit against the column actually left over, measured in the font that is
+    # selected right now. Both change as you cycle images and fonts.
+    details_size = DETAILS_TEXT_SIZE * size_adjustment
+
     # Title
-    display.text(title, LEFT_PADDING, HEIGHT - (DETAILS_HEIGHT * 2) - LINE_SPACING - 2, TEXT_WIDTH, DETAILS_TEXT_SIZE * size_adjustment)
+    title_line, title_size = fit_text(title, details_size, TEXT_WIDTH)
+    display.text(title_line, LEFT_PADDING,
+                 HEIGHT - (DETAILS_HEIGHT * 2) - LINE_SPACING - 2,
+                 TEXT_WIDTH, title_size)
 
     # Show pronouns if given, otherwise show any handle or blank if neither
-    # if pronouns exists and is not empty, show it
-    if pronouns and pronouns.strip() != "":
-        display.text(pronouns, LEFT_PADDING, HEIGHT - DETAILS_HEIGHT, TEXT_WIDTH, DETAILS_TEXT_SIZE * size_adjustment)
-    else:
-        display.text(handle, LEFT_PADDING, HEIGHT - DETAILS_HEIGHT, TEXT_WIDTH, DETAILS_TEXT_SIZE * size_adjustment)
+    second = pronouns if (pronouns and pronouns.strip() != "") else handle
+    second_line, second_size = fit_text(second, details_size, TEXT_WIDTH)
+    display.text(second_line, LEFT_PADDING, HEIGHT - DETAILS_HEIGHT,
+                 TEXT_WIDTH, second_size)
 
     display.update()
 
