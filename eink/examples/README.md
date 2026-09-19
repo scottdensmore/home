@@ -51,6 +51,19 @@ python3 tools/badge_image.py --input headshot.jpg --width 100 --format png \
 python3 tools/badge_image.py --input headshot.jpg --width 100 --variants
 ```
 
+### Playful GitHub badges
+
+[`tools/github_card.py`](../tools/github_card.py) builds two extras from a GitHub handle: your avatar over a contribution grid, and your avatar over a QR code pointing at your profile.
+
+```bash
+python3 tools/github_card.py --user <handle> --card github
+python3 tools/github_card.py --user <handle> --card github --only grid --weeks 26
+```
+
+It writes `github-1-grid_100.png` and `github-2-qr_100.png`, ready to sit in `/badges/` next to a `github.txt`. The badge has no WiFi, so the contribution data is fetched and rendered on your computer and baked into the image -- re-run the tool to refresh it.
+
+The QR needs the `qrcode` package (`pip install qrcode`); pass `--only grid` to skip it.
+
 Use `--format png` on a Universe 2024 badge: PNG is lossless, so the image can be dithered to 1-bit up front. On a 2023 badge use `--format jpg`, which ships a grayscale JPEG and lets the badge dither it -- pre-dithering then JPEG-compressing destroys the pattern.
 
 _Note:_ To run this app on the Universe 2023 badge, the `BACK_COMPAT_MODE` constant must be set to `True`. Any PNG images in the `/badges/` directory will be ignored.
