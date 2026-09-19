@@ -126,7 +126,7 @@ def main():
         canvas.paste(av, ((W - av.width) // 2, 1))
         canvas.paste(grid, ((W - grid.width) // 2, SCREEN_H - grid.height - 2))
         out = args.outdir / f"{args.card}-1-grid_{W}.png"
-        save_png(canvas, out, dither=False)
+        save_png(canvas, out, "none")
         built.append(out)
 
     if args.only != "grid":
@@ -138,7 +138,7 @@ def main():
         canvas.paste(av, ((W - av.width) // 2, 2))
         canvas.paste(qr, ((W - qr.width) // 2, SCREEN_H - qr.height - 2))
         out = args.outdir / f"{args.card}-2-qr_{W}.png"
-        save_png(canvas, out, dither=False)
+        save_png(canvas, out, "none")
         built.append(out)
 
     for b in built:

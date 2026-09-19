@@ -21,7 +21,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from PIL import Image, ImageEnhance, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageOps
 
 SCREEN_W, SCREEN_H = 296, 128
 ICON_SIZE = 52
@@ -54,7 +54,24 @@ def fit(img, w, h, centering):
     return ImageOps.fit(img, (w, h), method=Image.LANCZOS, centering=centering)
 
 
-def prepare(img, w, h, contrast, autocontrast, zoom=1.0, centering=(0.5, 0.5)):
+def fade_left(img, width):
+    """Ramp the left `width` px to white.
+
+    A hard-edged image butts up against the text; fading it lets a wide image
+    bleed toward the name without the two colliding.
+    """
+    if width <= 0:
+        return img
+    px = img.load()
+    for x in range(min(width, img.width)):
+        t = x / float(width)
+        for y in range(img.height):
+            px[x, y] = int(255 - (255 - px[x, y]) * t)
+    return img
+
+
+def prepare(img, w, h, contrast, autocontrast, zoom=1.0, centering=(0.5, 0.5),
+            fade=0):
     img = img.convert("RGBA")
     # Flatten transparency onto white so avatars with alpha don't go black.
     flat = Image.new("RGBA", img.size, (255, 255, 255, 255))
@@ -67,7 +84,7 @@ def prepare(img, w, h, contrast, autocontrast, zoom=1.0, centering=(0.5, 0.5)):
         img = ImageOps.autocontrast(img, cutoff=2)
     if contrast != 1.0:
         img = ImageEnhance.Contrast(img).enhance(contrast)
-    return img
+    return fade_left(img, fade)
 
 
 def save_jpeg(img, path):
@@ -77,10 +94,83 @@ def save_jpeg(img, path):
     )
 
 
-def save_png(img, path, dither):
+BAYER8 = [
+    [0, 32, 8, 40, 2, 34, 10, 42], [48, 16, 56, 24, 50, 18, 58, 26],
+    [12, 44, 4, 36, 14, 46, 6, 38], [60, 28, 52, 20, 62, 30, 54, 22],
+    [3, 35, 11, 43, 1, 33, 9, 41], [51, 19, 59, 27, 49, 17, 57, 25],
+    [15, 47, 7, 39, 13, 45, 5, 37], [63, 31, 55, 23, 61, 29, 53, 21],
+]
+
+
+def dither_atkinson(img):
+    """Atkinson error diffusion - the classic 1-bit Mac look.
+
+    Only 6/8 of the error is propagated, so it clips highlights and shadows
+    rather than preserving them. Crisper and more graphic than Floyd-Steinberg
+    at badge sizes, at the cost of some detail in flat areas.
+    """
+    img = img.copy()
+    px = img.load()
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            old = px[x, y]
+            new = 255 if old > 127 else 0
+            px[x, y] = new
+            err = (old - new) // 8
+            for dx, dy in ((1, 0), (2, 0), (-1, 1), (0, 1), (1, 1), (0, 2)):
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < w and 0 <= ny < h:
+                    px[nx, ny] = max(0, min(255, px[nx, ny] + err))
+    return img.convert("1", dither=Image.NONE)
+
+
+def dither_bayer(img):
+    """Ordered 8x8 threshold - a regular, retro crosshatch instead of noise."""
+    img = img.copy()
+    px = img.load()
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            threshold = (BAYER8[y % 8][x % 8] + 0.5) * 4
+            px[x, y] = 255 if px[x, y] > threshold else 0
+    return img.convert("1", dither=Image.NONE)
+
+
+def dither_halftone(img, cell=4):
+    """Newsprint dot screen: one dot per cell, sized by that cell's darkness."""
+    w, h = img.size
+    out = Image.new("1", (w, h), 1)
+    d = ImageDraw.Draw(out)
+    for cy in range(0, h, cell):
+        for cx in range(0, w, cell):
+            box = img.crop((cx, cy, min(cx + cell, w), min(cy + cell, h)))
+            pixels = list(box.getdata())
+            darkness = 1.0 - (sum(pixels) / len(pixels) / 255.0)
+            r = darkness * (cell / 2.0) * 1.45
+            if r < 0.35:
+                continue
+            mx, my = cx + cell / 2.0 - 0.5, cy + cell / 2.0 - 0.5
+            d.ellipse([mx - r, my - r, mx + r, my + r], fill=0)
+    return out
+
+
+DITHERS = {
+    "fs": lambda im: im.convert("1", dither=Image.FLOYDSTEINBERG),
+    "atkinson": dither_atkinson,
+    "bayer": dither_bayer,
+    "halftone": dither_halftone,
+    "none": lambda im: im.convert("1", dither=Image.NONE),
+}
+
+
+def to_1bit(img, mode):
+    return DITHERS[mode](img.convert("L"))
+
+
+def save_png(img, path, mode="fs"):
     """1-bit PNG, no alpha. Pre-dithered because PNG is lossless and holds the pattern."""
-    out = img.convert("1", dither=Image.FLOYDSTEINBERG if dither else Image.NONE)
-    out.save(path, "PNG", optimize=True)
+    to_1bit(img, mode).save(path, "PNG", optimize=True)
 
 
 def main():
@@ -105,8 +195,10 @@ def main():
                    help="contrast multiplier applied before dithering (default: 1.4)")
     p.add_argument("--no-autocontrast", action="store_true",
                    help="skip the automatic level stretch")
-    p.add_argument("--no-dither", action="store_true",
-                   help="PNG only: hard threshold instead of Floyd-Steinberg")
+    p.add_argument("--dither", choices=sorted(DITHERS), default="fs",
+                   help="PNG only: fs (Floyd-Steinberg, default), atkinson (crisp "
+                        "1-bit Mac look), bayer (retro crosshatch), halftone "
+                        "(newsprint dots), none (hard threshold)")
     p.add_argument("--variants", action="store_true",
                    help="also emit -lo/-hi contrast versions so you can compare")
     p.add_argument("--zoom", type=float, default=1.0,
@@ -115,6 +207,9 @@ def main():
     p.add_argument("--centering", default="0.5,0.5", metavar="X,Y",
                    help="crop anchor as two 0-1 floats; 0.5,0.35 favours the top "
                         "of the frame, which suits headshots (default: 0.5,0.5)")
+    p.add_argument("--fade", type=int, default=0, metavar="PX",
+                   help="ramp the leftmost PX to white so a wide image can bleed "
+                        "toward the text instead of hard-edging against it")
     p.add_argument("--name", help="override the output filename stem")
     p.add_argument("--outdir", type=Path, default=Path("."),
                    help="where to write output (default: current directory)")
@@ -167,12 +262,12 @@ def main():
 
     for suffix, contrast in builds:
         img = prepare(src_img, w, h, contrast, not args.no_autocontrast,
-                      zoom=args.zoom, centering=centering)
+                      zoom=args.zoom, centering=centering, fade=args.fade)
         out = args.outdir / f"{name_for(suffix)}.{args.format}"
         if args.format == "jpg":
             save_jpeg(img, out)
         else:
-            save_png(img, out, not args.no_dither)
+            save_png(img, out, args.dither)
         print(f"wrote {out}  ({w}x{h}, {args.format})")
 
     if args.icon:

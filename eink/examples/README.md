@@ -64,6 +64,18 @@ It writes `github-1-grid_100.png` and `github-2-qr_100.png`, ready to sit in `/b
 
 The QR needs the `qrcode` package (`pip install qrcode`); pass `--only grid` to skip it.
 
+`--dither` picks how grey becomes black-and-white, which matters more than it sounds at this size:
+
+| mode | look |
+| --- | --- |
+| `fs` | Floyd-Steinberg, the default. Softest, holds the most mid-tone detail. |
+| `atkinson` | Propagates only 6/8 of the error, so it clips toward pure black and white. Crisper and more graphic; good for faces. |
+| `bayer` | Ordered 8x8 threshold, a regular retro crosshatch. |
+| `halftone` | Newsprint dot screen. Striking on graphics, but too coarse for a face in a 100px slot. |
+| `none` | Hard threshold. Right for artwork that is already pure black and white. |
+
+`--fade PX` ramps the left edge of an image to white so a wide one can bleed toward the text rather than hard-edging against it. It only helps for photos with a real background -- on a subject shot against white there is nothing to fade.
+
 Use `--format png` on a Universe 2024 badge: PNG is lossless, so the image can be dithered to 1-bit up front. On a 2023 badge use `--format jpg`, which ships a grayscale JPEG and lets the badge dither it -- pre-dithering then JPEG-compressing destroys the pattern.
 
 _Note:_ To run this app on the Universe 2023 badge, the `BACK_COMPAT_MODE` constant must be set to `True`. Any PNG images in the `/badges/` directory will be ignored.
