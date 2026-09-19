@@ -22,7 +22,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from badge_image import fetch_avatar, prepare, save_png  # noqa: E402
+from badge_image import fetch_avatar, prepare, save_jpeg, save_png  # noqa: E402
 
 SCREEN_H = 128
 CONTRIBS_URL = "https://github.com/{user}.contribs"
@@ -94,6 +94,16 @@ def avatar_1bit(user, size, contrast):
         "1", dither=Image.FLOYDSTEINBERG)
 
 
+def write(canvas, path, fmt):
+    """These canvases are already pure black and white, so no dithering either
+    way. JPEG keeps its edges because quality is high and subsampling is off.
+    """
+    if fmt == "jpg":
+        save_jpeg(canvas, path)
+    else:
+        save_png(canvas, path, "none")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -108,6 +118,9 @@ def main():
                    help="build just one of the two (default: both)")
     p.add_argument("--contrast", type=float, default=1.4,
                    help="avatar contrast before dithering (default: 1.4)")
+    p.add_argument("--format", choices=["png", "jpg"], default="png",
+                   help="png for a 2024 badge; jpg for a 2023 badge, which has "
+                        "no pngdec (default: png)")
     p.add_argument("--outdir", type=Path, default=Path("."))
     args = p.parse_args()
 
@@ -125,8 +138,8 @@ def main():
         av = avatar_1bit(args.user, W - 14, args.contrast)
         canvas.paste(av, ((W - av.width) // 2, 1))
         canvas.paste(grid, ((W - grid.width) // 2, SCREEN_H - grid.height - 2))
-        out = args.outdir / f"{args.card}-1-grid_{W}.png"
-        save_png(canvas, out, "none")
+        out = args.outdir / f"{args.card}-1-grid_{W}.{args.format}"
+        write(canvas, out, args.format)
         built.append(out)
 
     if args.only != "grid":
@@ -137,8 +150,8 @@ def main():
         av = avatar_1bit(args.user, 48, args.contrast)
         canvas.paste(av, ((W - av.width) // 2, 2))
         canvas.paste(qr, ((W - qr.width) // 2, SCREEN_H - qr.height - 2))
-        out = args.outdir / f"{args.card}-2-qr_{W}.png"
-        save_png(canvas, out, "none")
+        out = args.outdir / f"{args.card}-2-qr_{W}.{args.format}"
+        write(canvas, out, args.format)
         built.append(out)
 
     for b in built:

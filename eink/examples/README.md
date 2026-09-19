@@ -78,7 +78,7 @@ The QR needs the `qrcode` package (`pip install qrcode`); pass `--only grid` to 
 
 Use `--format png` on a Universe 2024 badge: PNG is lossless, so the image can be dithered to 1-bit up front. On a 2023 badge use `--format jpg`, which ships a grayscale JPEG and lets the badge dither it -- pre-dithering then JPEG-compressing destroys the pattern.
 
-_Note:_ To run this app on the Universe 2023 badge, the `BACK_COMPAT_MODE` constant must be set to `True`. Any PNG images in the `/badges/` directory will be ignored.
+_Note:_ Badge++ detects whether the badge has `pngdec` and ignores PNG images when it does not, so the same file runs on a Universe 2023 badge (RP2040, JPEG only) and a 2024 one (RP2350). Use `--format jpg` for a 2023 badge.
 
 ## Copilot
 Have some time before your next session? Read this guide to help you get the most out of GitHub Copilot.

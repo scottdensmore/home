@@ -9,10 +9,6 @@ import re
 WIDTH = badger2040.WIDTH
 HEIGHT = badger2040.HEIGHT
 
-# PNG images are not supported on the Universe 2023 badge.
-# Enable this flag to allow this app to run on those badges.
-BACK_COMPAT_MODE = False
-
 LEFT_PADDING = 7
 NAME_HEIGHT = 45
 LASTNAME_HEIGHT = 30
@@ -84,7 +80,7 @@ def extract_image_width_from_filename(filename):
 def is_image(name):
     if name.endswith(".jpg"):
         return True
-    return name.endswith(".png") and not BACK_COMPAT_MODE
+    return name.endswith(".png") and PNG_SUPPORTED
 
 
 def discover_slides():
@@ -259,12 +255,16 @@ display.set_update_speed(badger2040.UPDATE_NORMAL)
 
 jpeg = jpegdec.JPEG(display.display)
 
-# Only load the PNG library if we're not in compatibility mode.
-if(not(BACK_COMPAT_MODE)):
+# Universe 2023 badges (RP2040) have no pngdec at all, while 2024 ones do.
+# Detect it rather than making the user flip a flag per badge.
+try:
     import pngdec
     png = pngdec.PNG(display.display)
-else:
-    print("PNG library is not available on the Universe 2023 badge.")
+    PNG_SUPPORTED = True
+except ImportError:
+    png = None
+    PNG_SUPPORTED = False
+    print("no pngdec on this badge; PNG images will be ignored")
 
 SLIDES = discover_slides()
 TOTAL_SLIDES = len(SLIDES)
