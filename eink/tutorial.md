@@ -1,6 +1,6 @@
 # Loading Apps onto Your Universe Badge
 
-Welcome to the GitHub Universe badge tutorial, using the Badger 2040 (or 2350) by [Pimoroni](https://pimoroni.com). This will walk you through the process of loading a simple app onto your badge. Once you've completed this tutorial, you'll know how to install other apps (available in the [examples](/examples) folder), and be ready to learn how to create your own Badger programs as well!
+Welcome to the GitHub Universe badge tutorial, using the Badger 2040 (or 2350) by [Pimoroni](https://pimoroni.com). This will walk you through the process of loading a simple app onto your badge. Once you've completed this tutorial, you'll know how to install other apps (available in the [examples](/eink/examples) folder), and be ready to learn how to create your own Badger programs as well!
 
 ## Using the Thonny IDE for Badger programming
 
@@ -22,7 +22,7 @@ Thonny is a Integrated Development Environment (IDE), a tool that helps you writ
 
 ## Loading a Program
 
-Now that you have Thonny installed and your Badger 2040 connected, let's walk through the process of loading a program onto your badge. While you could write one from scratch (see the [feature and function reference](/2040reference.md) later), this can be a complex and error-prone process, so we'll begin by loading some prebuilt programs (which we'll call "apps") onto the device.
+Now that you have Thonny installed and your Badger 2040 connected, let's walk through the process of loading a program onto your badge. While you could write one from scratch (see the [feature and function reference](/eink/2040reference.md) later), this can be a complex and error-prone process, so we'll begin by loading some prebuilt programs (which we'll call "apps") onto the device.
 
 ### Each of these apps has two parts:
 
@@ -91,7 +91,7 @@ Now that you've loaded your first app, reconnect the badge to your computer and 
 
 ![Copying files in Thonny IDE](tutorial_load_files.png)
 
-When you tire of prebuilt examples, try building a program of your own. Find an example you can modify, or read the [feature and function reference](/2040reference.md) to dig deeper. 
+When you tire of prebuilt examples, try building a program of your own. Find an example you can modify, or read the [feature and function reference](/eink/2040reference.md) to dig deeper. 
 
 If you build something fun, consider open-sourcing your code so other attendees can try it out.
 
