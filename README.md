@@ -182,6 +182,17 @@ hardware tests without copying. See
 The Wi-Fi template is [`badge/secrets.py`](./badge/secrets.py). Keep committed
 values empty and configure credentials only on the device.
 
+## Continuous integration
+
+PRs and pushes to `main` use preinstalled Python 3.12+ to parse all Python
+sources in `badge/` and `badge25/` without importing or executing apps, validate
+JSON, check PNG signatures/chunk bounds/checksums, and enforce empty credential
+templates. Eight synthetic checker tests cover rejection and non-execution.
+No tools are installed, files copied to devices, firmware flashed, or artifacts
+published. These static checks do not validate MicroPython bytecode/API
+compatibility, rendering, input, wireless, or other physical badge behavior;
+the hardware testing guidance below still applies.
+
 ## Contributing
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md). New development should target the
