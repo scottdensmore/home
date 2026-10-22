@@ -37,8 +37,7 @@ Your app should follow the standard structure:
   assets/          # Optional: images, data files, etc.
 ```
 
-See the [README](./README.md#creating-a-2026-app),
-[`badge/AGENTS.md`](./badge/AGENTS.md), and the
+See the [README](./README.md#creating-a-2026-app) and the
 [hardware reference](./hardware/README.md) for current development guidance.
 
 ### 2. Test on a real badge
