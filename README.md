@@ -20,6 +20,12 @@ people using the previous badge.
 The legacy simulator and Badgeware API documentation are under `badge25/`.
 They do not model the 2026 graphics and input APIs.
 
+## Examples
+
+The [Apps](./badge/apps/) is folder contains all the applications that ship on the badge along
+with others from the stock Pimoroni Tufty 2350 badge the GitHub Universe badge is based on. It 
+also contains a number of community submitted applications for you to experiment with.
+
 ## Pimoroni and Badgeware resources
 
 - [Tufty 2350 product page and specifications](https://shop.pimoroni.com/products/tufty-2350)
@@ -67,6 +73,17 @@ the RP2350 GPIO map and onboard peripheral connections. See the
 [USB serial and MicroPython REPL guide](./hardware/USB_SERIAL.md) to inspect a
 connected badge and copy files or apps.
 
+## Skills for building 2026 apps
+
+The [`hyb26-skill`](./.github/skills/hyb26-skill/SKILL.md) Copilot skill helps
+you create, check, debug, and install apps on your badge from macOS, Linux, or
+Windows. Copilot picks it up automatically in this repository. It covers
+`mpremote` and the REPL, switching the badge into USB Disk Mode from your
+computer, enabling custom `icon.png` menu icons on stock badges, and the
+[badger.github.io simulator](https://badger.github.io/editor). See its
+[README](./.github/skills/hyb26-skill/README.md) to install it for other
+projects.
+
 ## Creating a 2026 app
 
 Apps are directories under `badge/apps/`:
@@ -110,6 +127,14 @@ including `badge`, `screen`, `image`, `font`, `color`, `shape`, `brush`,
 `vec2`, `rect`, `mat3`, `run`, button constants, mode constants, and filesystem
 helpers. Inspect the apps in [`badge/apps/`](./badge/apps/) for working
 patterns.
+
+### Badge Simulator canvas
+
+If you use the GitHub Copilot app, this repository includes a **Badge
+Simulator** canvas that loads automatically. Ask Copilot to "open the Badge
+Simulator for my_app": your app runs on a 3D badge beside the chat and reloads
+every time you save. **Deploy** asks Copilot to install it on a connected badge.
+See [`.github/extensions/badge-simulator/`](./.github/extensions/badge-simulator/README.md).
 
 ### Input and orientation
 
@@ -194,6 +219,9 @@ compatibility, rendering, input, wireless, or other physical badge behavior;
 the hardware testing guidance below still applies.
 
 ## Contributing
+
+We welcome contributions! If you've created a new app or improved an existing
+one, please consider submitting a pull request.
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md). New development should target the
 2026 runtime under `badge/`; only compatibility fixes for the older hardware
